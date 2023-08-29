@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Games</title>
+    <meta name="author" content="SysDeveloper2022 ;)">
+    <meta name="viewport"content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+</head>
+<body>
+    <canvas id="htmlCanvas"> Игральное поле </canvas>
+
+    <script src="module/constant.js"></script>
+    <script src="module/class.js"></script>
+    <script src="module/function.js"></script>
+
+    <script>
+        // Системныв параметры
+        let HorizontalTail = 9;
+        let VerticalTail = 10;
+
+        let TailMinCount = 3;
+        let TailTypeCount = 7;
+        let TailEmpty = 0;
+        let TailBomb = 6;
+        let TailBombRadius = 1;
+
+        let TailImageSize = 32;
+
+        let TailAreaHorizontal = 71;
+        let TailArealVertical = 121;
+
+        let TailCells = Array(HorizontalTail).fill().map(() => Array(VerticalTail).fill(0));
+        let TailCellsErase = [];
+        let TailCellsReverse = [];
+        let TailCellsHistory = [];
+
+        // Пользовательские параметры
+        let TailMixingCount = 0 ;
+        let TailMixingUsed = 0;
+
+        let TailBonusCount = 0;
+        let TailBonusUsed = 0;
+
+        let TailRequestCount = 0;
+        let TailRequestUsed = 0;
+
+        // Параметры Canvas
+        let htmlCanvas = document.getElementById("htmlCanvas");
+        let ctx = htmlCanvas.getContext('2d')
+
+        htmlCanvas.width = 733;
+        htmlCanvas.height = 521;
+
+        let TailAreaMapsImage = new Image();
+        TailAreaMapsImage.src = TAIL_AREA_MAPS;
+        TailAreaMapsImage.addEventListener('load', () => {
+            ctx.drawImage(TailAreaMapsImage, 0, 0, 733, 521);
+        });
+
+        let TailAreaScopeImage = new Image();
+        TailAreaScopeImage.src = TAIL_AREA_SCOPE;
+        TailAreaScopeImage.addEventListener('load', () => {
+            RefreshTailScope();
+        });        
+
+        let TailAreaMixedImage = new Image();
+        TailAreaMixedImage.src = TAIL_AREA_MIXED;
+        TailAreaMixedImage.addEventListener('load', () => {
+            RefreshTailBonus();
+        });        
+
+        InitTail();
+
+        // Обработчик события клавиатуры window
+        window.addEventListener('keydown', (event) => {
+            switch (event.keyCode){
+                case 77: // Нажатие клавиши "M" (Размешивание тайлов)
+                    if (TailMixingUsed < TailMixingCount){
+                        MixedTail();
+                        RefreshTailHistorySync();
+                        TailMixingUsed = TailMixingUsed + 1;
+                    }
+                    break;
+
+                case 78: // Нажатие клавиши "N" (Начальная инициализация тайлов)
+                    InitTail();
+                    break;
+
+                default:
+                    break;
+            }
+        })
+
+        // Обработчик события click Canvas
+        htmlCanvas.addEventListener('click', (event) => {
+            let x = event.clientX;
+            let y = event.clientY;
+
+            let nPolygonAction = getTailPolygonAction(x, y);
+
+            console.log(nPolygonAction);
+
+            let nHorizontal = Math.floor((x - TailAreaHorizontal) / TailImageSize);
+            let nVertical = Math.floor((y - TailArealVertical) / TailImageSize);
+
+            let oTailSelect;
+            let oTailReverse;
+
+            if (nPolygonAction == TAIL_AREA_ACTION){
+                oTailSelect = TailCells[nHorizontal][nVertical];
+                oTailReverse = TailCellsReverse[0];
+            } else {
+                oTailSelect = TailCells[0][0];
+                oTailReverse = TailCellsReverse[0];
+            }
+
+            if (nPolygonAction == TAIL_UNDIFINED_ACTION){
+
+            } else if (nPolygonAction == TAIL_NEW_GAME_ACTION){
+                InitTail();
+                TailCellsReverse.splice(0, TailCellsReverse.length);
+
+            } else if (nPolygonAction == TAIL_AREA_ACTION && TailRequestUsed >= TailRequestCount){
+                TailCellsReverse.splice(0, TailCellsReverse.length);
+
+            } else if (nPolygonAction == TAIL_MIXED_ACTION && TailMixingUsed < TailMixingCount){
+                MixedTail();
+                RefreshTailHistorySync();
+                TailMixingUsed = TailMixingUsed + 1;
+                TailCellsReverse.splice(0, TailCellsReverse.length);
+
+            } else if (nPolygonAction == TAIL_AREA_ACTION && oTailSelect.Type == TailBomb){
+                EraseTailBomb(oTailSelect);
+                MoveTail();
+                RefreshTailHistory();
+
+                TailRequestUsed = TailRequestUsed + 1;
+                TailCellsReverse.splice(0, TailCellsReverse.length);
+
+            } else if(nPolygonAction == TAIL_AREA_ACTION && oTailSelect.Type != TailEmpty && TailCellsReverse.length > 0 && oTailSelect == oTailReverse) {
+                EraseTail(oTailSelect, true);
+                MoveTail();            
+                RefreshTailHistory();
+
+                TailRequestUsed = TailRequestUsed + 1;
+                TailCellsReverse.splice(0, TailCellsReverse.length);
+
+            } else if(nPolygonAction == TAIL_AREA_ACTION && oTailSelect.Type != TailEmpty && TailCellsReverse.length > 0 && oTailSelect != oTailReverse) {
+                ReverseTail(oTailSelect, oTailReverse)
+                EraseTail(oTailSelect, true);
+                EraseTail(oTailReverse, true);
+                MoveTail();            
+                RefreshTailHistory();
+
+                TailRequestUsed == TailRequestUsed + 1;
+                TailCellsReverse.splice(0, TailCellsReverse.length);
+
+            } else if(nPolygonAction == TAIL_AREA_ACTION && oTailSelect.Type != TailEmpty && TailCellsReverse.length == 0) {
+                TailCellsReverse.push(oTailSelect);
+
+            } else if(nPolygonAction == TAIL_AREA_ACTION){
+                TailRequestUsed = TailRequestUsed + 1;
+
+            }
+
+            RefreshTailScope();
+            RefreshTailBonus();
+        })
+    </script>
+</body>
+</html>
