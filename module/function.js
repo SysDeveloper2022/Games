@@ -27,6 +27,9 @@ function InitTail() {
             }
         }
     }
+
+    RefreshTailScope();
+    RefreshTailBonus();
 }
 
 function RefreshTailScope(){
