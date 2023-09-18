@@ -152,7 +152,7 @@
                 MoveTail();            
                 RefreshTailHistory();
 
-                TailRequestUsed == TailRequestUsed + 1;
+                TailRequestUsed = TailRequestUsed + 1;
                 TailCellsReverse.splice(0, TailCellsReverse.length);
 
             } else if(nPolygonAction == TAIL_AREA_ACTION && oTailSelect.Type != TailEmpty && TailCellsReverse.length == 0) {
